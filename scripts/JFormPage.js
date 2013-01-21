@@ -79,34 +79,43 @@ JFormPage = Class.extend({
 
         var self = this;
         var each = $.each;
+        var componentPromises = [];
         
         self.validationPassed = true;
-        each(this.jFormSections, function(sectionKey, section) {
+        each(self.jFormSections, function(sectionKey, section) {
            each(section.instanceArray, function(instanceIndex, sectionInstance){
                 each(sectionInstance.jFormComponents, function(componentKey, component) {
                     if(component.type == 'JFormComponentLikert'){
                         return;
                     }
                     each(component.instanceArray, function(instanceIndex, instance) {
-                        instance.validate();
-                        if(instance.validationPassed == false) {
-                            self.validationPassed = false;
-                        }
+                        componentPromises.push(instance.validate());
                     });
                 });
             });
         });
 
-        if(self.validationPassed) {
-            $('#navigatePage'+(self.jFormer.currentJFormPageIdArrayIndex + 1)).removeClass('jFormPageNavigatorLinkWarning');
-        }
-        else if(!silent) {
-            if(this.id === this.jFormer.currentJFormPage.id){
-                this.focusOnFirstFailedComponent();
-            }
-        }
+        var pagePromise = $.Deferred();
+        $.when.apply($, componentPromises).done(function() {
+            // Determine if all validations passed
+            var validationResults = Array.prototype.slice.call(arguments);
+            self.validationPassed = validationResults.every(function(result) {
+                return (result === 'success');
+            });
 
-        return self.validationPassed;
+            if(self.validationPassed) {
+                $('#navigatePage'+(self.jFormer.currentJFormPageIdArrayIndex + 1)).removeClass('jFormPageNavigatorLinkWarning');
+            }
+            else if(!silent) {
+                if(self.id === self.jFormer.currentJFormPage.id){
+                    self.focusOnFirstFailedComponent();
+                }
+            }
+
+            pagePromise.resolve(self.validationPassed ? 'success' : false);
+        });
+
+        return pagePromise;
     },
 
     clearValidation: function() {

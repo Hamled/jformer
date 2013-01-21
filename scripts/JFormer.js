@@ -928,72 +928,97 @@ submitEvent: function(event) {
         onSubmitStartResult = self.options.onSubmitStart();
     }
 
-    // Validate the current page if you are not the last page
-    var clientSideValidationPassed = false;
-    if(this.options.clientSideValidation) {
+    var validationFunc = function() {
+        return false;
+    }
+
+    if(self.options.clientSideValidation) {
+        // Validate the current page if you are not the last page
         if(self.currentJFormPageIdArrayIndex < self.jFormPageIdArray.length - 1 && !self.lastEnabledPage) {
-            //console.log('Validating single page.');
-            clientSideValidationPassed = self.getActivePage().validate();
+            validationFunc = self.getActivePage().validate.bind(self.getActivePage());
         }
         else {
-            //console.log('Validating whole form.');
-            clientSideValidationPassed = self.validateAll();
+            validationFunc = self.validateAll.bind(self);
         }
     }
-    // Ignore client side validation
     else {
-        this.clearValidation();
-        clientSideValidationPassed = true;
+        // Ignore client side validation
+        validationFunc = function() {
+            self.clearValidation();
+            return true;
+        }
     }
 
-    // Run any custom functions at the end of the validation
-    var onSubmitFinishResult = self.options.onSubmitFinish();
+    var promises = validationFunc();
+    $.when.apply($, $.makeArray(promises)).done(function() {
+        // Determine if all validations passed
+        var validationResults = Array.prototype.slice.call(arguments);
+        var clientSideValidationPassed = validationResults.every(function(result) {
+            return (result === 'success');
+        });
 
-    // If the custom finish function returns false, do not submit the form
-    if(onSubmitFinishResult) {
-        // Last page, submit the form
-        //console.log(clientSideValidationPassed && (self.currentJFormPageIdArrayIndex == self.jFormPageIdArray.length - 1) || (self.lastEnabledPage === true ));
-        if(clientSideValidationPassed && (self.currentJFormPageIdArrayIndex == self.jFormPageIdArray.length - 1) || (self.lastEnabledPage === true )) {
-            self.submitForm(event);
-        }
-        // Not last page, scroll to the next page
-        else if(clientSideValidationPassed && self.currentJFormPageIdArrayIndex < self.jFormPageIdArray.length - 1) {
-            // if the next page is disabled by dependency, loop through till you find a good page.
-            if(self.jFormPages[self.jFormPageIdArray[self.currentJFormPageIdArrayIndex + 1]].disabledByDependency){
-                for(var i = self.currentJFormPageIdArrayIndex + 1; i <= self.jFormPageIdArray.length - 1; i++){
-                    // page is enabled, set the proper index, and break out of the loop.
-                    if(!self.jFormPages[self.jFormPageIdArray[self.currentJFormPageIdArrayIndex + i]].disabledByDependency){
-                        self.currentJFormPageIdArrayIndex = self.currentJFormPageIdArrayIndex + i;
-                        break;
-                    }
-                }
-            } else {
-                self.currentJFormPageIdArrayIndex = self.currentJFormPageIdArrayIndex + 1;
+        // Run any custom functions at the end of the validation
+        var onSubmitFinishResult = self.options.onSubmitFinish();
+
+        // If the custom finish function returns false, do not submit the form
+        if(onSubmitFinishResult) {
+            // Last page, submit the form
+            //console.log(clientSideValidationPassed && (self.currentJFormPageIdArrayIndex == self.jFormPageIdArray.length - 1) || (self.lastEnabledPage === true ));
+            if(clientSideValidationPassed && (self.currentJFormPageIdArrayIndex == self.jFormPageIdArray.length - 1) || (self.lastEnabledPage === true )) {
+                self.submitForm(event);
             }
-            self.scrollToPage(self.jFormPageIdArray[self.currentJFormPageIdArrayIndex]);
+            // Not last page, scroll to the next page
+            else if(clientSideValidationPassed && self.currentJFormPageIdArrayIndex < self.jFormPageIdArray.length - 1) {
+                // if the next page is disabled by dependency, loop through till you find a good page.
+                if(self.jFormPages[self.jFormPageIdArray[self.currentJFormPageIdArrayIndex + 1]].disabledByDependency){
+                    for(var i = self.currentJFormPageIdArrayIndex + 1; i <= self.jFormPageIdArray.length - 1; i++){
+                        // page is enabled, set the proper index, and break out of the loop.
+                        if(!self.jFormPages[self.jFormPageIdArray[self.currentJFormPageIdArrayIndex + i]].disabledByDependency){
+                            self.currentJFormPageIdArrayIndex = self.currentJFormPageIdArrayIndex + i;
+                            break;
+                        }
+                    }
+                } else {
+                    self.currentJFormPageIdArrayIndex = self.currentJFormPageIdArrayIndex + 1;
+                }
+                self.scrollToPage(self.jFormPageIdArray[self.currentJFormPageIdArrayIndex]);
+            }
         }
-    }
+    });
 },
 
 validateAll: function(){
     var self = this;
-    var validationPassed = true;
+    var pagePromises = [];
     var index = 0;
-    $.each(this.jFormPages, function(jFormPageKey, jFormPage) {
-        var passed = jFormPage.validate();
-        //console.log(jFormPage.id, 'passed', passed);
-        if(passed === false) {
-            //console.log('something went wrong' );
-            self.currentJFormPageIdArrayIndex = index;
-            if(self.currentJFormPage.id != jFormPage.id) {
-                jFormPage.scrollTo();
+
+    // Somewhat hacky, but this prevents switching between pages more than once when multiple async validations fail
+    var errorDisplayed = false;
+
+    $.each(self.jFormPages, function(jFormPageKey, jFormPage) {
+        var curIndex = index;
+
+        pagePromises.push($.when(jFormPage.validate()).done(function() {
+            // Determine if all validations passed
+            var validationResults = Array.prototype.slice.call(arguments);
+            var passed = validationResults.every(function(result) {
+                return (result === 'success');
+            });
+
+            if(passed === false && !errorDisplayed) {
+                errorDisplayed = true;
+                self.currentJFormPageIdArrayIndex = curIndex;
+
+                if(self.currentJFormPage.id != jFormPage.id) {
+                    jFormPage.scrollTo();
+                }
             }
-            validationPassed = false;
-            return false; // Break out of the .each
-        }
+        }));
+
         index++;
     });
-    return validationPassed;
+
+    return pagePromises;
 },
 
 adjustHeight: function(options) {

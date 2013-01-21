@@ -625,9 +625,6 @@ JFormComponent = Class.extend({
         if(this.options.validationOptions.length < 1) {
             return true;
         }
-        if(silent){
-            var silentValidationPassed = true;
-        }
 
         var self = this;
         this.clearValidation();
@@ -637,41 +634,45 @@ JFormComponent = Class.extend({
             return true;
         }
 
-        $.each(this.options.validationOptions, function(validationType, validationOptions){
+        var validationPromises = [];
+        $.each(self.options.validationOptions, function(validationType, validationOptions){
             validationOptions['value'] = value;
-            var validation = self.validationFunctions[validationType](validationOptions);
+            validationPromises.push($.when(self.validationFunctions[validationType](validationOptions)).done(function(validation) {
+                if(validation == 'success') {
+                    if(validationType.match('required')){
+                        self.requiredCompleted = true;
+                    }
+                } else {
+                    if(validationType.match('required')){
+                        self.requiredCompleted = false;
+                        if(self.parentJFormSection.parentJFormPage.jFormer.options.pageNavigator != false){
+                            var pageIndex = $.inArray(self.parentJFormSection.parentJFormPage.id, self.parentJFormSection.parentJFormPage.jFormer.jFormPageIdArray);
+                            $('#navigatePage'+(pageIndex + 1)).addClass('jFormPageNavigatorLinkWarning');
+                        }
+                    }
 
-            if(validation == 'success') {
-                if(validationType.match('required')){
-                    self.requiredCompleted = true;
-                }
-                return true;
-            }
-            else {
-                if(validationType.match('required')){
-                    self.requiredCompleted = false;
-                    if(self.parentJFormSection.parentJFormPage.jFormer.options.pageNavigator != false){
-                        var pageIndex = $.inArray(self.parentJFormSection.parentJFormPage.id, self.parentJFormSection.parentJFormPage.jFormer.jFormPageIdArray);
-                        $('#navigatePage'+(pageIndex + 1)).addClass('jFormPageNavigatorLinkWarning');
+                    if(!silent){
+                        $.merge(self.errorMessageArray, validation); 
                     }
                 }
-                if(silent){
-                    silentValidationPassed = false;
-                } else {
-                    $.merge(self.errorMessageArray, validation);   
-                }
-            }
+            }));
         });
-        if(silent) {
-            return silentValidationPassed;
-        }
-        else {
-            if(this.errorMessageArray.length > 0 ) {
-                this.handleErrors();
-                this.validationPassed = false;
+
+        var componentPromise = $.Deferred();
+        $.when.apply($, validationPromises).done(function() {
+            var validationResults = Array.prototype.slice.call(arguments);
+            self.validationPassed = validationResults.every(function(result) {
+                return (result === 'success');
+            });
+
+            if(!silent && self.errorMessageArray.length > 0 ) {
+                self.handleErrors();
             }
-            return this.validationPassed;
-        }
+
+            componentPromise.resolve(self.validationPassed ? 'success' : self.errorMessageArray);
+        });
+
+        return componentPromise;
     },
 
     handleServerValidationResponse: function(errorMessageArray) {

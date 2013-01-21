@@ -82,6 +82,8 @@ JFormComponentName = JFormComponent.extend({
         if(!this.changed){
             this._super();
         }
+
+        var componentPromise = $.Deferred();
         
         setTimeout(function() {
             if(!self.component.hasClass('jFormComponentHighlight')){
@@ -89,24 +91,36 @@ JFormComponentName = JFormComponent.extend({
                     return true;
                 }
                 self.clearValidation();
+
+                var validationPromises = [];
                 $.each(self.options.validationOptions, function(validationType, validationOptions){
                     validationOptions['value'] = self.getValue();
-                    var validation = self.validationFunctions[validationType](validationOptions);
-                    if(validation == 'success'){
-                        return;
-                    }
-                    else {
-                        $.merge(self.errorMessageArray, validation);
-                        self.validationPassed = false;
-                    }
+                    validationPromises.push(self.validationFunctions[validationType](validationOptions).done(function(validation) {
+                        if(validation != 'success'){
+                            $.merge(self.errorMessageArray, validation);
+                        }
+                    }));
                 });
-                if(self.errorMessageArray.length > 0 ){
-                    self.handleErrors();
-                }
-                self.changed = false;
-                return self.validationPassed;
+
+                $.when.apply($, validationPromises).done(function() {
+                    // Determine if all validations passed
+                    var validationResults = Array.prototype.slice.call(arguments);
+                    var validationPassed = validationResults.every(function(result) {
+                        return (result === 'success');
+                    });
+
+                    if(self.errorMessageArray.length > 0 ){
+                        self.handleErrors();
+                    }
+
+                    self.changed = false;
+
+                    componentPromise.resolve(validationPassed ? 'success' : self.errorMessageArray);
+                });
             }
         }, 1);
+
+        return componentPromise;
     },
 
     addEmptyValues: function(){

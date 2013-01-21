@@ -215,8 +215,12 @@ JFormComponentSingleLineText = JFormComponent.extend({
                     return 'success'
                 }
 
+                if(options.async === undefined)
+                    options.async = false;
+
                 // options: value, url, data
                 var errorMessageArray = [];
+                var validationPromise = $.Deferred();
 
                 options.component.addClass('jFormComponentServerSideCheck');
                 $.ajax({
@@ -228,24 +232,27 @@ JFormComponentSingleLineText = JFormComponent.extend({
                     },
                     dataType: 'json' ,
                     cache: false,
-                    async: false,
+                    async: options.async,
                     success: function(json) {
-                        if(json.status != 'success') {
-                            errorMessageArray = json.response;
-                        }
-
                         options.component.removeClass('jFormComponentServerSideCheck');
+
+                        if(json.status != 'success') {
+                            validationPromise.resolve(json.response);
+                        } else {
+                            validationPromise.resolve('success');
+                        }
                     },
                     error: function(XMLHttpRequest, textStatus, errorThrown){
+                        options.component.removeClass('jFormComponentServerSideCheck');
+
                         if(textStatus != 'error'){
                             errorThrown = textStatus ? textStatus : 'Unknown error';
                         }
-                        errorMessageArray = ['There was an error during server side validation: '+ errorThrown];
-                        options.component.removeClass('jFormComponentServerSideCheck');
+                        validationPromise.resolve(['There was an error during server side validation: '+ errorThrown]);
                     }
                 });
 
-                return errorMessageArray.length < 1 ? 'success' : errorMessageArray;
+                return validationPromise;
             },
             'ssn': function(options) {
                 var errorMessageArray = ['Must be a valid United States social security number.'];
