@@ -809,7 +809,7 @@ class JFormer {
                 ));
 
         // Update the script tag
-        $script->update('$(document).ready(function () { ' . $this->id . 'Object = new JFormer(\'' . $this->id . '\', ' . json_encode($this->getOptions()) . '); });');
+        $script->update('$(document).ready(function () { ' . $this->id . 'Object = new JFormer(\'' . $this->id . '\', ' . json_encode($this->getPublicOptions()) . '); });');
         $jFormElement->insert($script);
 
         // Add a hidden iframe to handle the form posts
@@ -839,7 +839,22 @@ class JFormer {
         return $jFormElement;
     }
 
+    public function filterPrivateOption(&$item, $key)
+    {
+        if ($key[0] === '_' && $key[1] === '_')
+            $item = '';
+    }
+
+    public function getPublicOptions()
+    {
+        // Don't send options prefixed by __
+        $options = $this->getOptions();
+        array_walk_recursive($options, 'JFormer::filterPrivateOption');
+
+        return $options;
+    }
 }
+
 
 // Handle any requests that come to this file
 if (isset($_GET['iframe'])) {
