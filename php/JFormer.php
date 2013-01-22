@@ -66,6 +66,8 @@ class JFormer {
     var $validationPassed = null;
     // Required Text
     var $requiredText = ' *';
+    // Perform ajax calls on submit validation
+    var $ajaxOnSubmit = true;
 
     /**
      * Constructor
@@ -563,6 +565,9 @@ class JFormer {
         }
         if ($this->submitProcessingButtonText != 'Processing...') {
             $options['options']['submitProcessingButtonText'] = $this->submitProcessingButtonText;
+        }
+        if (!$this->ajaxOnSubmit) {
+            $options['options']['ajaxOnSubmit'] = false;
         }
 
         if (empty($options['options'])) {

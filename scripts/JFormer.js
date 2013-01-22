@@ -59,7 +59,8 @@ JFormer = Class.extend({
             },
             onSubmitFinish: function() {
                 return true;
-            }
+            },
+            ajaxOnSubmit: true
         }, options.options || {});
 
         // Class variables
@@ -949,7 +950,12 @@ submitEvent: function(event) {
         }
     }
 
-    var promises = validationFunc();
+    var silent = false;
+    var options = {
+        ajaxOnSubmit: self.options.ajaxOnSubmit
+    };
+
+    var promises = validationFunc(silent, options);
     $.when.apply($, $.makeArray(promises)).done(function() {
         // Determine if all validations passed
         var validationResults = Array.prototype.slice.call(arguments);
@@ -987,7 +993,7 @@ submitEvent: function(event) {
     });
 },
 
-validateAll: function(){
+validateAll: function(silent, options){
     var self = this;
     var pagePromises = [];
     var index = 0;
@@ -998,7 +1004,7 @@ validateAll: function(){
     $.each(self.jFormPages, function(jFormPageKey, jFormPage) {
         var curIndex = index;
 
-        pagePromises.push($.when(jFormPage.validate()).done(function() {
+        pagePromises.push($.when(jFormPage.validate(silent, options)).done(function() {
             // Determine if all validations passed
             var validationResults = Array.prototype.slice.call(arguments);
             var passed = validationResults.every(function(result) {

@@ -70,7 +70,7 @@ JFormPage = Class.extend({
         return this.formData;
     },
 
-    validate: function(silent) {
+    validate: function(silent, options) {
         //console.log('validating', this.id);
         // Handle dependencies
         if(this.disabledByDependency) {
@@ -89,7 +89,7 @@ JFormPage = Class.extend({
                         return;
                     }
                     each(component.instanceArray, function(instanceIndex, instance) {
-                        componentPromises.push(instance.validate());
+                        componentPromises.push(instance.validate(silent, options));
                     });
                 });
             });

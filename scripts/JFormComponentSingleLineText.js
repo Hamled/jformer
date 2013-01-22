@@ -211,7 +211,7 @@ JFormComponentSingleLineText = JFormComponent.extend({
                 return options.value != '' ? 'success' : errorMessageArray;
             },
             'serverSide': function(options) {
-                if(options.value == '') {
+                if(options.value == '' || options.callOptions.ajaxOnSubmit === false) {
                     return 'success'
                 }
 

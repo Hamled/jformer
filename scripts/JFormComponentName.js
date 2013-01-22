@@ -73,7 +73,7 @@ JFormComponentName = JFormComponent.extend({
         return name;
     },
 
-    validate: function(){
+    validate: function(silent, options){
         if(!this.parentJFormSection.parentJFormPage.jFormer.options.clientSideValidation) {
             return;
         }
@@ -94,6 +94,7 @@ JFormComponentName = JFormComponent.extend({
 
                 var validationPromises = [];
                 $.each(self.options.validationOptions, function(validationType, validationOptions){
+                    validationOptions['callOptions'] = options || {};
                     validationOptions['value'] = self.getValue();
                     validationPromises.push(self.validationFunctions[validationType](validationOptions).done(function(validation) {
                         if(validation != 'success'){

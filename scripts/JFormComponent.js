@@ -614,7 +614,7 @@ JFormComponent = Class.extend({
         this.component.find(':input').val('');
     },
 
-    validate: function(silent) {
+    validate: function(silent, options) {
         //console.log('validating a component Bi!', this.parentJFormSection.parentJFormPage.id, this.id);
         // Handle dependencies
         if(this.disabledByDependency || this.parentJFormSection.disabledByDependency) {
@@ -636,6 +636,7 @@ JFormComponent = Class.extend({
 
         var validationPromises = [];
         $.each(self.options.validationOptions, function(validationType, validationOptions){
+            validationOptions['callOptions'] = options || {};
             validationOptions['value'] = value;
             validationPromises.push($.when(self.validationFunctions[validationType](validationOptions)).done(function(validation) {
                 if(validation == 'success') {
