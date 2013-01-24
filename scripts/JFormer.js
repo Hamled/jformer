@@ -936,10 +936,10 @@ submitEvent: function(event) {
     if(self.options.clientSideValidation) {
         // Validate the current page if you are not the last page
         if(self.currentJFormPageIdArrayIndex < self.jFormPageIdArray.length - 1 && !self.lastEnabledPage) {
-            validationFunc = self.getActivePage().validate.bind(self.getActivePage());
+            validationFunc = $.proxy(self.getActivePage().validate, self.getActivePage());
         }
         else {
-            validationFunc = self.validateAll.bind(self);
+            validationFunc = $.proxy(self.validateAll, self);
         }
     }
     else {
@@ -959,9 +959,9 @@ submitEvent: function(event) {
     $.when.apply($, $.makeArray(promises)).done(function() {
         // Determine if all validations passed
         var validationResults = Array.prototype.slice.call(arguments);
-        var clientSideValidationPassed = validationResults.every(function(result) {
-            return (result === 'success');
-        });
+        var clientSideValidationPassed = $.grep(validationResults, function(result) {
+            return (result !== 'success');
+        }).length == 0;
 
         // Run any custom functions at the end of the validation
         var onSubmitFinishResult = self.options.onSubmitFinish();
@@ -1007,9 +1007,9 @@ validateAll: function(silent, options){
         pagePromises.push($.when(jFormPage.validate(silent, options)).done(function() {
             // Determine if all validations passed
             var validationResults = Array.prototype.slice.call(arguments);
-            var passed = validationResults.every(function(result) {
-                return (result === 'success');
-            });
+            var passed = $.grep(validationResults, function(result) {
+                return (result !== 'success');
+            }).length == 0;
 
             if(passed === false && !errorDisplayed) {
                 errorDisplayed = true;

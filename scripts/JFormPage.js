@@ -99,9 +99,9 @@ JFormPage = Class.extend({
         $.when.apply($, componentPromises).done(function() {
             // Determine if all validations passed
             var validationResults = Array.prototype.slice.call(arguments);
-            self.validationPassed = validationResults.every(function(result) {
-                return (result === 'success');
-            });
+            self.validationPassed = $.grep(validationResults, function(result) {
+                return (result !== 'success');
+            }).length == 0;
 
             if(self.validationPassed) {
                 $('#navigatePage'+(self.jFormer.currentJFormPageIdArrayIndex + 1)).removeClass('jFormPageNavigatorLinkWarning');

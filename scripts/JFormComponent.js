@@ -662,9 +662,9 @@ JFormComponent = Class.extend({
         var componentPromise = $.Deferred();
         $.when.apply($, validationPromises).done(function() {
             var validationResults = Array.prototype.slice.call(arguments);
-            self.validationPassed = validationResults.every(function(result) {
-                return (result === 'success');
-            });
+            self.validationPassed = $.grep(validationResults, function(result) {
+                return (result !== 'success');
+            }).length == 0;
 
             if(!silent && self.errorMessageArray.length > 0 ) {
                 self.handleErrors();

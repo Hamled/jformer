@@ -145,9 +145,9 @@ JFormComponentCreditCard = JFormComponent.extend({
                 $.when.apply($, validationPromises).done(function() {
                     // Determine if all validations passed
                     var validationResults = Array.prototype.slice.call(arguments);
-                    var validationPassed = validationResults.every(function(result) {
-                        return (result === 'success');
-                    });
+                    var validationPassed = $.grep(validationResults, function(result) {
+                        return (result !== 'success');
+                    }).length == 0;
 
                     if(self.errorMessageArray.length > 0 ){
                         self.handleErrors();
